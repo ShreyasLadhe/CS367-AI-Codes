@@ -34,6 +34,6 @@ ini_state = ['E', 'E', 'E', '_', 'W', 'W', 'W']
 fin_state = ['W', 'W', 'W', '_', 'E', 'E', 'E']
 
 dfs_solution = rableap_dfs(ini_state, fin_state)
-print("\nDFS Solution:")
+print("\nSolution using DFS:")
 for step in dfs_solution:
     print(step)

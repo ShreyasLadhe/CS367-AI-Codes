@@ -37,6 +37,6 @@ ini_state = ['E', 'E', 'E', '_', 'W', 'W', 'W']
 fin_state = ['W', 'W', 'W', '_', 'E', 'E', 'E']
 
 bfs_solution = rableap_bfs(ini_state, fin_state)
-print("BFS Solution:")
+print("Solution using BFS:")
 for step in bfs_solution:
     print(step)
