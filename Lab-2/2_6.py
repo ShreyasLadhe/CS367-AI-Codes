@@ -1,93 +1,83 @@
+from collections import deque
 import random
 import time
-from collections import deque
-import memory_profiler
+import tracemalloc
 
-goal = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 0]
-]
+class Node:
+    def __init__(self, state, parent=None):
+        self.state = state
+        self.parent = parent
 
-def check_move(pos, move):
-    row, col = pos
-    if move == 'up' and row > 0:
-        return True
-    if move == 'down' and row < 2:
-        return True
-    if move == 'left' and col > 0:
-        return True
-    if move == 'right' and col < 2:
-        return True
-    return False
-
-def get_pos(pos, move):
-    row, col = pos
-    if move == 'up':
-        return (row - 1, col)
-    if move == 'down':
-        return (row + 1, col)
-    if move == 'left':
-        return (row, col - 1)
-    if move == 'right':
-        return (row, col + 1)
-
-def puzzle(depth):
-    curr_state = [row[:] for row in goal]
-    blank = (2, 2)
-    moves = ['up', 'down', 'left', 'right']
+def get_successors(node):
+    successors = []
+    index = node.state.index(0)
+    quotient = index // 3
+    remainder = index % 3
+    moves = []
+    if quotient == 0:
+        moves = [3]
+    if quotient == 1:
+        moves = [-3, 3]
+    if quotient == 2:
+        moves = [-3]
+    if remainder == 0:
+        moves += [1]
+    if remainder == 1:
+        moves += [-1, 1]
+    if remainder == 2:
+        moves += [-1]
     
-    for _ in range(depth):
-        move = random.choice(moves)
-        if check_move(blank, move):
-            new_blank = get_pos(blank, move)
-            curr_state[blank[0]][blank[1]], curr_state[new_blank[0]][new_blank[1]] = (
-                curr_state[new_blank[0]][new_blank[1]],
-                curr_state[blank[0]][blank[1]],
-            )
-            blank = new_blank
+    for move in moves:
+        im = index + move
+        if 0 <= im < 9:
+            new_state = list(node.state)
+            new_state[index], new_state[im] = new_state[im], new_state[index]
+            successors.append(Node(new_state, node))
+    return successors
 
-    return curr_state
-
-def bfs(graph, initial_state):
-    frontier = deque()
+def bfs(start_state, goal_state):
+    start_node = Node(start_state)
+    queue = deque([start_node])
     visited = set()
-    frontier.append(initial_state)
+    nodes_explored = 0
 
-    while frontier:
-        current_node = frontier.popleft()
+    while queue:
+        node = queue.popleft()
+        if tuple(node.state) in visited:
+            continue
+        visited.add(tuple(node.state))
+        nodes_explored += 1
+        if node.state == goal_state:
+            path = []
+            while node:
+                path.append(node.state)
+                node = node.parent
+            return path[::-1], nodes_explored
+        for successor in get_successors(node):
+            queue.append(successor)
+
+    return None, nodes_explored
+
+def generate_goal_state(depth):
+    start_state = [1, 2, 3, 4, 5, 6, 7, 8, 0]
+    s_node = Node(start_state)
+    for _ in range(depth):
+        s_node = random.choice(get_successors(s_node))
+    return s_node.state
+
+def run_experiment(max_depth):
+    print(f"{'Depth':<10}{'Time (s)':<15}{'Nodes Explored (Memory)'}{'Memory (KB)':<15}")
+    for d in range(1, max_depth + 1):
+        start_state = [1, 2, 3, 4, 5, 6, 7, 8, 0]
+        goal_state = generate_goal_state(d)
         
-        if current_node == goal:
-            return True
+        start_time = time.time()
+        solution, nodes_explored = bfs(start_state, goal_state)
+        end_time = time.time()
+        current, peak = tracemalloc.get_traced_memory()  
+        tracemalloc.stop()  
 
-        visited.add(tuple(map(tuple, current_node)))
+        time_taken = end_time - start_time
+        print(f"{d:<10}{time_taken:<15.6f}{nodes_explored:<20}{peak / 1024:<15.2f}")
 
-        blank = [(i, j) for i in range(3) for j in range(3) if current_node[i][j] == 0][0]
-        for move in ['up', 'down', 'left', 'right']:
-            if check_move(blank, move):
-                new_blank = get_pos(blank, move)
-                new_state = [row[:] for row in current_node]
-                new_state[blank[0]][blank[1]], new_state[new_blank[0]][new_blank[1]] = (
-                    new_state[new_blank[0]][new_blank[1]],
-                    new_state[blank[0]][blank[1]],
-                )
-                if tuple(map(tuple, new_state)) not in visited:
-                    frontier.append(new_state)
-
-    return False
-
-depths = [1, 2, 3, 4, 5, 6, 7, 8]
-results = []
-
-for d in depths:
-    puzzle_instance = puzzle(d)
-    start_time = time.time()
-    mem_usage = memory_profiler.memory_usage((bfs, (puzzle_instance,)))
-    time_taken = time.time() - start_time
-    max_memory = max(mem_usage)
-
-    results.append((d, time_taken, max_memory))
-
-print(f"{'Depth (d)':<10} {'Time Taken (s)':<20} {'Memory Used (MB)':<20}")
-for result in results:
-    print(f"{result[0]:<10} {result[1]:<20.6f} {result[2]:<20.6f}")
+run_experiment(20)
